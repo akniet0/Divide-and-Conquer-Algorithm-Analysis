@@ -1,62 +1,55 @@
 public class MergeSorter {
     private static final int CUTOFF = 16;
 
-    public static Metrics sort(int[] a) {
-        Metrics m = new Metrics();
-        if (a == null || a.length <= 1) return m;
-        int[] aux = new int[a.length];
-        sort(a, aux, 0, a.length - 1, m);
-        return m;
+    public long comparisons;
+    public int maxDepth;
+    private int[] buffer;
+
+    public void sort(int[] a) {
+        comparisons = 0;
+        maxDepth = 0;
+        if (a.length < 2) return;
+        buffer = new int[a.length];
+        sort(a, 0, a.length - 1, 1);
     }
 
-    private static void sort(int[] a, int[] aux, int low, int high, Metrics m) {
-        m.enter();
-        if (high <= low + CUTOFF) {
-            insertionSort(a, low, high, m);
-            m.exit();
+    private void sort(int[] a, int lo, int hi, int depth) {
+        maxDepth = Math.max(maxDepth, depth);
+        if (hi - lo + 1 <= CUTOFF) {
+            insertionSort(a, lo, hi);
             return;
         }
-
-        int mid = low + (high - low) / 2;
-        sort(a, aux, low, mid, m);
-        sort(a, aux, mid + 1, high, m);
-        merge(a, aux, low, mid, high, m);
-        m.exit();
+        int mid = (lo + hi) >>> 1;
+        sort(a, lo, mid, depth + 1);
+        sort(a, mid + 1, hi, depth + 1);
+        merge(a, lo, mid, hi);
     }
 
-    private static void merge(int[] a, int[] aux, int low, int mid, int high, Metrics m) {
-        System.arraycopy(a, low, aux, low, high - low + 1);
-
-        int i = low;
-        int j = mid + 1;
-        for (int k = low; k <= high; k++) {
+    private void merge(int[] a, int lo, int mid, int hi) {
+        System.arraycopy(a, lo, buffer, lo, hi - lo + 1);
+        int i = lo, j = mid + 1;
+        for (int k = lo; k <= hi; k++) {
             if (i > mid) {
-                a[k] = aux[j++];
-            } else if (j > high) {
-                a[k] = aux[i++];
+                a[k] = buffer[j++];
+            } else if (j > hi) {
+                a[k] = buffer[i++];
             } else {
-                m.comparisons++;
-                if (aux[j] < aux[i]) {
-                    a[k] = aux[j++];
-                } else {
-                    a[k] = aux[i++];
-                }
+                comparisons++;
+                if (buffer[j] < buffer[i]) a[k] = buffer[j++];
+                else a[k] = buffer[i++];
             }
         }
     }
 
-    private static void insertionSort(int[] a, int low, int high, Metrics m) {
-        for (int i = low + 1; i <= high; i++) {
+    private void insertionSort(int[] a, int lo, int hi) {
+        for (int i = lo + 1; i <= hi; i++) {
             int key = a[i];
             int j = i - 1;
-            while (j >= low) {
-                m.comparisons++;
-                if (a[j] > key) {
-                    a[j + 1] = a[j];
-                    j--;
-                } else {
-                    break;
-                }
+            while (j >= lo) {
+                comparisons++;
+                if (a[j] <= key) break;
+                a[j + 1] = a[j];
+                j--;
             }
             a[j + 1] = key;
         }
