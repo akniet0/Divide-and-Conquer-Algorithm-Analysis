@@ -1,11 +1,10 @@
+import java.io.File;
+import java.io.IOException;
+
 public class Main {
-    public static void main(String[] args) {
-        try {
-            System.out.println("Starting experiments...");
-            Experiment.runExperiments("results/results.csv");
-            System.out.println("Execution finished. Data exported to results/results.csv");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public static void main(String[] args) throws IOException {
+        new File("results").mkdirs();
+        new Experiment().run("results/results.csv");
+        System.out.println("Saved results/results.csv");
     }
 }
