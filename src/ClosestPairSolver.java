@@ -2,73 +2,80 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 public class ClosestPairSolver {
-    public static double solve(Point[] points, Metrics m) {
-        if (points == null || points.length < 2) return Double.POSITIVE_INFINITY;
-        Point[] sortedX = points.clone();
-        Arrays.sort(sortedX, Comparator.comparingDouble(p -> p.x));
-        Point[] aux = new Point[sortedX.length];
-        return findClosest(sortedX, aux, 0, sortedX.length - 1, m);
+    public long distanceChecks;
+    public int maxDepth;
+    private Point[] points;
+    private Point[] buffer;
+
+    // Returns the smallest distance between two points (infinity if fewer than 2 points).
+    public double solve(Point[] input) {
+        distanceChecks = 0;
+        maxDepth = 0;
+        if (input.length < 2) return Double.POSITIVE_INFINITY;
+        points = input.clone();
+        buffer = new Point[points.length];
+        Arrays.sort(points, Comparator.comparingDouble(Point::x));
+        return Math.sqrt(solve(0, points.length - 1, 1));
     }
 
-    private static double findClosest(Point[] px, Point[] aux, int low, int high, Metrics m) {
-        m.enter();
-        if (high - low <= 3) {
-            double min = bruteForce(px, low, high, m);
-            Arrays.sort(px, low, high + 1, Comparator.comparingDouble(p -> p.y));
-            m.exit();
-            return min;
+    // Returns the smallest squared distance in points[lo..hi]; leaves that range sorted by y.
+    private double solve(int lo, int hi, int depth) {
+        maxDepth = Math.max(maxDepth, depth);
+        if (hi - lo + 1 <= 3) {
+            double best = Double.POSITIVE_INFINITY;
+            for (int i = lo; i <= hi; i++)
+                for (int j = i + 1; j <= hi; j++)
+                    best = Math.min(best, dist2(points[i], points[j]));
+            Arrays.sort(points, lo, hi + 1, Comparator.comparingDouble(Point::y));
+            return best;
         }
 
-        int mid = low + (high - low) / 2;
-        double midX = px[mid].x;
+        int mid = (lo + hi) >>> 1;
+        double midX = points[mid].x();
+        double best = Math.min(solve(lo, mid, depth + 1), solve(mid + 1, hi, depth + 1));
+        mergeByY(lo, mid, hi);
 
-        double d1 = findClosest(px, aux, low, mid, m);
-        double d2 = findClosest(px, aux, mid + 1, high, m);
-        double d = Math.min(d1, d2);
-
-        mergeY(px, aux, low, mid, high);
-
-        int stripCount = 0;
-        for (int i = low; i <= high; i++) {
-            if (Math.abs(px[i].x - midX) < d) {
-                aux[stripCount++] = px[i];
+        int size = 0;
+        for (int i = lo; i <= hi; i++) {
+            double dx = points[i].x() - midX;
+            if (dx * dx >= best) continue;
+            for (int j = size - 1; j >= 0; j--) {
+                double dy = points[i].y() - buffer[j].y();
+                if (dy * dy >= best) break;
+                best = Math.min(best, dist2(points[i], buffer[j]));
             }
+            buffer[size++] = points[i];
         }
-
-        for (int i = 0; i < stripCount; i++) {
-            for (int j = i + 1; j < stripCount && (aux[j].y - aux[i].y) < d; j++) {
-                m.comparisons++;
-                double dist = aux[i].distanceTo(aux[j]);
-                if (dist < d) {
-                    d = dist;
-                }
-            }
-        }
-
-        m.exit();
-        return d;
+        return best;
     }
 
-    private static void mergeY(Point[] a, Point[] aux, int low, int mid, int high) {
-        System.arraycopy(a, low, aux, low, high - low + 1);
-        int i = low, j = mid + 1;
-        for (int k = low; k <= high; k++) {
-            if (i > mid) a[k] = aux[j++];
-            else if (j > high) a[k] = aux[i++];
-            else if (aux[j].y < aux[i].y) a[k] = aux[j++];
-            else a[k] = aux[i++];
+    private void mergeByY(int lo, int mid, int hi) {
+        System.arraycopy(points, lo, buffer, lo, hi - lo + 1);
+        int i = lo, j = mid + 1;
+        for (int k = lo; k <= hi; k++) {
+            if (i > mid) points[k] = buffer[j++];
+            else if (j > hi) points[k] = buffer[i++];
+            else if (buffer[j].y() < buffer[i].y()) points[k] = buffer[j++];
+            else points[k] = buffer[i++];
         }
     }
 
-    public static double bruteForce(Point[] p, int low, int high, Metrics m) {
-        double min = Double.POSITIVE_INFINITY;
-        for (int i = low; i <= high; i++) {
-            for (int j = i + 1; j <= high; j++) {
-                if (m != null) m.comparisons++;
-                double dist = p[i].distanceTo(p[j]);
-                if (dist < min) min = dist;
+    private double dist2(Point p, Point q) {
+        distanceChecks++;
+        double dx = p.x() - q.x();
+        double dy = p.y() - q.y();
+        return dx * dx + dy * dy;
+    }
+
+    public static double bruteForce(Point[] pts) {
+        double best = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < pts.length; i++) {
+            for (int j = i + 1; j < pts.length; j++) {
+                double dx = pts[i].x() - pts[j].x();
+                double dy = pts[i].y() - pts[j].y();
+                best = Math.min(best, dx * dx + dy * dy);
             }
         }
-        return min;
+        return Math.sqrt(best);
     }
 }
